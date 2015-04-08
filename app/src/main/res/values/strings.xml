@@ -2,4 +2,7 @@
     <string name="app_name">TodoListManager</string>
 
     <string name="action_settings">Add</string>
+    <string name="title_activity_add_new_todo_item">Add new item</string>
+
+    <string name="hello_world">Hello world!</string>
 </resources>
