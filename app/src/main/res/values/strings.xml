@@ -1,8 +1,10 @@
 <resources>
     <string name="app_name">TodoListManager</string>
 
-    <string name="action_settings">Add</string>
+    <string name="add_item">Add</string>
     <string name="title_activity_add_new_todo_item">Add new item</string>
+    <string name="button_cancel">Cancel</string>
+    <string name="button_ok">OK</string>
+    <string name="edt_new_item_hint">Enter a to-do...</string>
 
-    <string name="hello_world">Hello world!</string>
 </resources>
