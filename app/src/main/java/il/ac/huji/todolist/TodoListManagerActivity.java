@@ -2,8 +2,10 @@ package il.ac.huji.todolist;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.net.Uri;
 import android.support.v7.app.ActionBarActivity;
@@ -15,58 +17,49 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ListView;
-import android.widget.ArrayAdapter;
+import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
 
-
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.List;
 
 public class TodoListManagerActivity extends ActionBarActivity {
     private static final int NEW_ITEM_REQUEST = 42;
-    private ArrayAdapter<TodoListItem> adapter;
-    private ArrayList<TodoListItem> list = new ArrayList<>();
+    private TodoListAdapter adapter;
+    private DBHelper helper;
 
-    private class TodoListItem {
-        private String title;
-        private Date dueDate;
-
-        private TodoListItem(String title, Date dueDate) {
-            this.title = title;
-            this.dueDate = dueDate;
-        }
-    }
-
-    private class TodoListAdapter extends ArrayAdapter<TodoListItem> {
-        public TodoListAdapter(TodoListManagerActivity todoListManagerActivity, int simple_list_item_1, List<TodoListItem> theList) {
-            super(todoListManagerActivity, simple_list_item_1, theList);
+    /**
+     * Inner class: cursor adapter between the database and the to-do list
+     */
+    private class TodoListAdapter extends SimpleCursorAdapter {
+        public TodoListAdapter(Context context, int layout, Cursor c, String[] from, int[] to, int flags) {
+            super(context, layout, c, from, to, flags);
         }
 
         @Override
         public View getView(int position, View convertView, ViewGroup parent) {
-            LayoutInflater inflater = LayoutInflater.from(getContext());
+            LayoutInflater inflater = (LayoutInflater) getApplicationContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             View view = inflater.inflate(R.layout.todo_list_item, null);
 
             TextView titleText = (TextView) view.findViewById(R.id.txtTodoTitle);
-            titleText.setText(getItem(position).title);
+            Cursor item = (Cursor) getItem(position);
+            titleText.setText(item.getString(DBHelper.TITLE_COLUMN_INDEX));
+            titleText.setTextColor(Color.BLACK);
 
             TextView dueDateText = (TextView) view.findViewById(R.id.txtTodoDueDate);
-            Date dueDate = getItem(position).dueDate;
-            if (dueDate != null) {
-                SimpleDateFormat dateOnly = new SimpleDateFormat("dd/MM/yyyy");
-                dueDateText.setText(dateOnly.format(dueDate));
-                if (isOverdue(dueDate)) {
-                    dueDateText.setTextColor(Color.RED);
-                    titleText.setTextColor(Color.RED);
-                }
-            } else {
-                dueDateText.setText("No due date");
+            Date dueDate = new Date(item.getLong(DBHelper.DUE_COLUMN_INDEX));
+            SimpleDateFormat dateOnly = new SimpleDateFormat("dd/MM/yyyy");
+            dueDateText.setText(dateOnly.format(dueDate));
+            dueDateText.setTextColor(Color.BLACK);
+            if (isOverdue(dueDate)) {
+                dueDateText.setTextColor(Color.RED);
+                titleText.setTextColor(Color.RED);
             }
+
             return view;
         }
+
 
         /**
          * Checks if the dueDate is before the current day (today)
@@ -75,6 +68,9 @@ public class TodoListManagerActivity extends ActionBarActivity {
          * @return true iff dueDate is before the current day
          */
         private boolean isOverdue(Date dueDate) {
+            if(dueDate == null){
+                return false;
+            }
             Calendar todayCal = Calendar.getInstance();
             todayCal.set(Calendar.HOUR_OF_DAY, 0);
             todayCal.set(Calendar.MINUTE, 0);
@@ -87,7 +83,7 @@ public class TodoListManagerActivity extends ActionBarActivity {
     }
 
     /**
-     * Opens a dialog for adding a to-do
+     * Opens a dialog for adding a new to-do
      *
      * @return true
      */
@@ -103,36 +99,39 @@ public class TodoListManagerActivity extends ActionBarActivity {
             String title = data.getStringExtra("title");
             Date dueDate = (Date) data.getSerializableExtra("dueDate");
             if (!title.equals("")) {
-                list.add(new TodoListItem(title, dueDate));
+                helper.insert(title, dueDate);
+                adapter.changeCursor(helper.getCursor());
+                adapter.notifyDataSetChanged();
             }
-            adapter.notifyDataSetChanged();
         }
     }
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_todo_list_manager);
 
+        helper = new DBHelper(this);
+
         ListView todoList = (ListView) findViewById(R.id.lstTodoItems);
-        adapter = new TodoListAdapter(this, R.layout.todo_list_item, this.list);
+        String[] from = new String[]{"title", "due"};
+        int[] to = new int[]{R.id.txtTodoTitle, R.id.txtTodoDueDate};
+        adapter = new TodoListAdapter(this, R.layout.todo_list_item, helper.getCursor(), from, to,
+                SimpleCursorAdapter.FLAG_REGISTER_CONTENT_OBSERVER);
         todoList.setAdapter(adapter);
 
         todoList.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
             @Override
             public boolean onItemLongClick(AdapterView<?> av, View v, int pos, final long id) {
                 final AlertDialog.Builder builder = new AlertDialog.Builder(TodoListManagerActivity.this);
-                final int posFinal = pos;
                 String title = ((TextView) v.findViewById(R.id.txtTodoTitle)).getText().toString();
                 builder.setMessage(title);
                 builder.setPositiveButton("Delete", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int whichButton) {
-                        TodoListManagerActivity.this.list.remove(posFinal);
+                        adapter.changeCursor(helper.delete(id));
                         adapter.notifyDataSetChanged();
                     }
                 });
-
                 if (title.toLowerCase().matches("call\\s[^\\s]+.*")) { // starts with 'call'
                     final String tel = title.substring(5);
                     builder.setNegativeButton("Call " + tel, new DialogInterface.OnClickListener() {
@@ -142,7 +141,6 @@ public class TodoListManagerActivity extends ActionBarActivity {
                         }
                     });
                 }
-
                 builder.show();
                 return true;
             }

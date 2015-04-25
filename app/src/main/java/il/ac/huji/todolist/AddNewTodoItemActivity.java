@@ -20,7 +20,7 @@ public class AddNewTodoItemActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_new_todo_item);
 
-        final Button btnOK = (Button)findViewById(R.id.btnOK);
+        final Button btnOK = (Button) findViewById(R.id.btnOK);
         btnOK.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Intent result = new Intent();
@@ -28,14 +28,14 @@ public class AddNewTodoItemActivity extends Activity {
                 result.putExtra("title", title);
                 DatePicker dp = (DatePicker) findViewById(R.id.datePicker);
                 Calendar cal = Calendar.getInstance();
-                cal.set(dp.getYear(),dp.getMonth(),dp.getDayOfMonth(),0,0,0);
+                cal.set(dp.getYear(), dp.getMonth(), dp.getDayOfMonth(), 0, 0, 0);
                 result.putExtra("dueDate", cal.getTime()); // send java.util.Date
                 setResult(RESULT_OK, result);
                 finish();
             }
         });
 
-        final Button btnCancel = (Button)findViewById(R.id.btnCancel);
+        final Button btnCancel = (Button) findViewById(R.id.btnCancel);
         btnCancel.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Intent result = new Intent();
